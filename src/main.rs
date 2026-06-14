@@ -63,6 +63,22 @@ impl Cpu {
         self.pc = address;
     }
 
+    // Skip next instruction if Vx = kk.
+    //The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
+    fn se(&mut self, vx: u8, value: u8) {
+        if vx == value {
+            self.pc += 2;
+        }
+    }
+
+    // Skip next instruction if Vx != kk.
+    //The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
+    fn sne(&mut self, vx: u8, value: u8) {
+        if vx != value {
+            self.pc += 2;
+        }
+    }
+
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
@@ -72,9 +88,13 @@ impl Cpu {
         self.pc += 2;
 
         // This is step 2, decoding to get the instruction nibble from opcode
-        let first_nibble = (opcode & 0xF000) >> 12;
+        let op = ((opcode & 0xF000) >> 12) as u8; // the instruction nibble
+        let x = ((opcode & 0x0F00) >> 8) as usize; //the index of general purpose index X registers
+        let y = ((opcode & 0x00F0) >> 4) as usize; //the index of general purpose index y register
+        let nnn = opcode & 0x0FFF;
+        let kk = (opcode & 0x00FF) as u8;
 
-        match first_nibble {
+        match op {
             0x0 => match opcode & 0x00FF {
                 0xE0 => {
                     self.clrscr();
@@ -85,12 +105,19 @@ impl Cpu {
                 _ => println!("Invalid 0x0 opcode: {:#06X}", opcode),
             },
             0x1 => {
-                let address = opcode & 0x00FF;
-                self.jmp(address);
+                self.jmp(nnn);
             }
             0x2 => {
-                let address = opcode & 0x0FFF;
-                self.call(address);
+                self.call(nnn);
+            }
+            0x3 => {
+                let vx_value = self.v[x];
+                self.se(vx_value, kk);
+            }
+            0x4 => {
+                let vx_value = self.v[x];
+
+                self.sne(vx_value, kk);
             }
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
