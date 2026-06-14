@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 struct Cpu {
     memory: [u8; 4096], //CHIP-8 can access 4KB of memory
     v: [u8; 16],        // The general purpose 16-bit registers
@@ -46,13 +48,30 @@ impl Cpu {
         self.pc = address;
     }
 
+    //  The interpreter increments the stack pointer, then puts the current PC on the top of the stack. The PC is then set to nnn.
+    fn call(&mut self, address: u16) {
+        if self.sp >= 16 {
+            panic!(
+                "Stack Overflow(hehe I can finally use this term)!!! 16 levels of nested subroutines"
+            );
+        }
+
+        self.sp += 1;
+
+        self.stack[self.sp as usize] = self.pc;
+
+        self.pc = address;
+    }
+
     fn tick(&mut self) {
+        // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
         let byte2 = self.memory[(self.pc + 1) as usize];
         let opcode = (byte1 as u16) << 8 | (byte2 as u16);
 
         self.pc += 2;
 
+        // This is step 2, decoding to get the instruction nibble from opcode
         let first_nibble = (opcode & 0xF000) >> 12;
 
         match first_nibble {
@@ -68,6 +87,10 @@ impl Cpu {
             0x1 => {
                 let address = opcode & 0x00FF;
                 self.jmp(address);
+            }
+            0x2 => {
+                let address = opcode & 0x0FFF;
+                self.call(address);
             }
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
