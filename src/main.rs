@@ -292,3 +292,30 @@ fn main() {
         println!("Register V3: {}", cpu.v[3]);
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_jmp() {
+        let mut cpu = Cpu::new();
+
+        cpu.jmp(0x300);
+
+        assert_eq!(cpu.pc, 0x300);
+    }
+
+    #[test]
+    fn test_se_skips_when_equal() {
+        let mut cpu = Cpu::new();
+        cpu.pc = 0x200;
+
+        cpu.se(cpu.v[1], 0);
+
+        //The program should have incremented by 2 now
+        assert_eq!(cpu.pc, 0x202);
+    }
+
+    //TODO: Write up all Tests... maybe in a different file.
+}
