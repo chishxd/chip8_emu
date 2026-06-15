@@ -101,6 +101,26 @@ impl Cpu {
         self.v[x] += kk;
     }
 
+    // 8xy4 - ADD Vx, Vy
+    // Set Vx = Vx + Vy, set VF = carry.
+
+    // The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
+    fn add_v(&mut self, x: usize, y: usize) {
+        self.v[x] += self.v[y];
+    }
+
+    // 8xy5 - SUB Vx, Vy
+    // Set Vx = Vx - Vy, set VF = NOT borrow.
+
+    // If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
+    fn sub_v(&mut self, x: usize, y: usize) {
+        let borrow_flag = if self.v[x] >= self.v[y] { 1 } else { 0 };
+
+        self.v[x] = self.v[x].wrapping_sub(self.v[y]);
+
+        self.v[0xF] = borrow_flag;
+    }
+
     // 8xy0 - LD Vx, Vy
     // Set Vx = Vy.
 
@@ -117,6 +137,22 @@ impl Cpu {
     // and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
     fn or(&mut self, x: usize, y: usize) {
         self.v[x] |= self.v[y];
+    }
+
+    // 8xy2 - AND Vx, Vy
+    // Set Vx = Vx AND Vy.
+
+    // Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0.
+    fn and(&mut self, x: usize, y: usize) {
+        self.v[x] &= self.v[y];
+    }
+
+    // 8xy3 - XOR Vx, Vy
+    // Set Vx = Vx XOR Vy.
+
+    // Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+    fn xor(&mut self, x: usize, y: usize) {
+        self.v[x] ^= self.v[y];
     }
 
     fn tick(&mut self) {
@@ -160,12 +196,13 @@ impl Cpu {
             0x6 => self.load(x, kk),
             0x7 => self.add(x, kk),
             0x8 => match n {
-                0x0 => {
-                    self.load_v(x, y);
-                }
-                0x1 => {
-                    self.or(x, y);
-                }
+                0x0 => self.load_v(x, y),
+                0x1 => self.or(x, y),
+                0x2 => self.and(x, y),
+                0x3 => self.xor(x, y),
+                0x4 => self.add_v(x, y),
+                0x5 => self.sub_v(x, y),
+
                 _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
             },
             _ => {
@@ -176,6 +213,8 @@ impl Cpu {
 }
 fn main() {
     let mut cpu = Cpu::new();
+
+    //[YEAH I KNOW TESTING HERE IS SLOPPY... I will fix it soon :)]
 
     // loading up some values like 10 and 20
     cpu.memory[0x200] = 0x61;
