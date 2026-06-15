@@ -109,6 +109,16 @@ impl Cpu {
         self.v[x] = self.v[y];
     }
 
+    // 8xy1 - OR Vx, Vy
+    // Set Vx = Vx OR Vy.
+
+    // Performs a bitwise OR on the values of Vx and Vy, then stores the result in Vx.
+    //  A bitwise OR compares the corrseponding bits from two values,
+    // and if either bit is 1, then the same bit in the result is also 1. Otherwise, it is 0.
+    fn or(&mut self, x: usize, y: usize) {
+        self.v[x] |= self.v[y];
+    }
+
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
@@ -153,6 +163,9 @@ impl Cpu {
                 0x0 => {
                     self.load_v(x, y);
                 }
+                0x1 => {
+                    self.or(x, y);
+                }
                 _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
             },
             _ => {
@@ -193,5 +206,6 @@ fn main() {
         println!("Stack Pointer(SP): {}", cpu.sp);
         println!("Register V1: {}", cpu.v[1]);
         println!("Register V2: {}", cpu.v[2]);
+        println!("Register V3: {}", cpu.v[3]);
     }
 }
