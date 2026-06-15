@@ -209,6 +209,24 @@ impl Cpu {
             self.pc += 2;
         }
     }
+    //  Annn - LD I, addr
+    // Set I = nnn.
+    //
+    // The value of register I is set to nnn.
+    //
+    fn load_addr(&mut self, nnn: u16) {
+        self.i = nnn;
+    }
+
+    //     Bnnn - JP V0, addr
+    // Jump to location nnn + V0.
+    //
+    // The program counter is set to nnn plus the value of V0.
+    //
+    fn jmp_v0(&mut self, nnn: u16) {
+        let target = nnn + (self.v[0] as u16);
+        self.pc = target & 0x0FFF;
+    }
 
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
@@ -257,6 +275,8 @@ impl Cpu {
                 _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
             },
             0x9 => self.sne_v(self.v[x], self.v[y]),
+            0xA => self.load_addr(nnn),
+            0xB => self.jmp_v0(nnn),
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
             }
