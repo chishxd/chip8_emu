@@ -101,26 +101,6 @@ impl Cpu {
         self.v[x] += kk;
     }
 
-    // 8xy4 - ADD Vx, Vy
-    // Set Vx = Vx + Vy, set VF = carry.
-
-    // The values of Vx and Vy are added together. If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. Only the lowest 8 bits of the result are kept, and stored in Vx.
-    fn add_v(&mut self, x: usize, y: usize) {
-        self.v[x] += self.v[y];
-    }
-
-    // 8xy5 - SUB Vx, Vy
-    // Set Vx = Vx - Vy, set VF = NOT borrow.
-
-    // If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
-    fn sub_v(&mut self, x: usize, y: usize) {
-        let borrow_flag = if self.v[x] >= self.v[y] { 1 } else { 0 };
-
-        self.v[x] = self.v[x].wrapping_sub(self.v[y]);
-
-        self.v[0xF] = borrow_flag;
-    }
-
     // 8xy0 - LD Vx, Vy
     // Set Vx = Vy.
 
@@ -153,6 +133,67 @@ impl Cpu {
     // Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
     fn xor(&mut self, x: usize, y: usize) {
         self.v[x] ^= self.v[y];
+    }
+
+    // 8xy4 - ADD Vx, Vy
+    // Set Vx = Vx + Vy, set VF = carry.
+
+    // The values of Vx and Vy are added together. 
+    // If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. 
+    // Only the lowest 8 bits of the result are kept, and stored in Vx.
+    fn add_v(&mut self, x: usize, y: usize) {
+        self.v[x] += self.v[y];
+    }
+
+    // 8xy5 - SUB Vx, Vy
+    // Set Vx = Vx - Vy, set VF = NOT borrow.
+
+    // If Vx > Vy, then VF is set to 1, otherwise 0.
+    //  Then Vy is subtracted from Vx, and the results stored in Vx.
+    fn sub_v(&mut self, x: usize, y: usize) {
+        let borrow_flag = if self.v[x] >= self.v[y] { 1 } else { 0 };
+
+        self.v[x] = self.v[x].wrapping_sub(self.v[y]);
+
+        self.v[0xF] = borrow_flag;
+    }
+
+    // 8xy6 - SHR Vx {, Vy}
+    // Set Vx = Vx SHR 1.
+
+    // If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. 
+    // Then Vx is divided by 2.
+    fn shr(&mut self, x: usize) {
+        let lsb = self.v[x] & 1;
+        self.v[x] >>= 1;
+
+        self.v[0xF] = lsb;
+    }
+
+    // 8xy7 - SUBN Vx, Vy
+    // Set Vx = Vy - Vx, set VF = NOT borrow.
+
+    // If Vy > Vx, then VF is set to 1, otherwise 0.
+    //  Then Vx is subtracted from Vy, and the results stored in Vx
+    fn subn(&mut self, x: usize, y: usize) {
+        let borrow_flag = if self.v[y] >= self.v[x] { 1 } else { 0 };
+
+        self.v[x] = self.v[y].wrapping_sub(self.v[x]);
+
+        self.v[0xF] = borrow_flag;
+    }
+
+    // 8xyE - SHL Vx {, Vy}
+    // Set Vx = Vx SHL 1.
+
+    // If the most-significant bit of Vx is 1, then VF is set to 1, otherwise to 0.
+    //  Then Vx is multiplied by 2.
+    fn shl(&mut self, x: usize) {
+        let msb = (self.v[x] >> 7) & 1;
+
+        self.v[x] <<= 1;
+
+        self.v[0xF] = msb;
     }
 
     fn tick(&mut self) {
@@ -202,6 +243,9 @@ impl Cpu {
                 0x3 => self.xor(x, y),
                 0x4 => self.add_v(x, y),
                 0x5 => self.sub_v(x, y),
+                0x6 => self.shr(x),
+                0x7 => self.subn(x, y),
+                0xE => self.shl(x),
 
                 _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
             },
