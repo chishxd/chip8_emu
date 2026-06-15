@@ -75,6 +75,40 @@ impl Cpu {
         }
     }
 
+    //  5xy0 - SE Vx, Vy
+    // Skip next instruction if Vx = Vy.
+
+    // The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
+    fn sev(&mut self, vx: u8, vy: u8) {
+        if vx == vy {
+            self.pc += 2;
+        }
+    }
+
+    // 6xkk - LD Vx, byte
+    // Set Vx = kk.
+
+    // The interpreter puts the value kk into register Vx.
+    fn load(&mut self, x: usize, kk: u8) {
+        self.v[x] = kk;
+    }
+
+    // 7xkk - ADD Vx, byte
+    // Set Vx = Vx + kk.
+
+    // Adds the value kk to the value of register Vx, then stores the result in Vx.
+    fn add(&mut self, x: usize, kk: u8) {
+        self.v[x] += kk;
+    }
+
+    // 8xy0 - LD Vx, Vy
+    // Set Vx = Vy.
+
+    // Stores the value of register Vy in register Vx.
+    fn load_v(&mut self, x: usize, y: usize) {
+        self.v[x] = self.v[y];
+    }
+
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
@@ -87,6 +121,7 @@ impl Cpu {
         let op = ((opcode & 0xF000) >> 12) as u8; // the instruction nibble
         let x = ((opcode & 0x0F00) >> 8) as usize; //the index of general purpose index X registers
         let y = ((opcode & 0x00F0) >> 4) as usize; //the index of general purpose index y register
+        let n = opcode & 0x000F;
         let nnn = opcode & 0x0FFF;
         let kk = (opcode & 0x00FF) as u8;
 
@@ -100,12 +135,8 @@ impl Cpu {
                 }
                 _ => println!("Invalid 0x0 opcode: {:#06X}", opcode),
             },
-            0x1 => {
-                self.jmp(nnn);
-            }
-            0x2 => {
-                self.call(nnn);
-            }
+            0x1 => self.jmp(nnn),
+            0x2 => self.call(nnn),
             0x3 => {
                 let vx_value = self.v[x];
                 self.se(vx_value, kk);
@@ -115,6 +146,15 @@ impl Cpu {
 
                 self.sne(vx_value, kk);
             }
+            0x5 => self.sev(self.v[x], self.v[y]),
+            0x6 => self.load(x, kk),
+            0x7 => self.add(x, kk),
+            0x8 => match n {
+                0x0 => {
+                    self.load_v(x, y);
+                }
+                _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
+            },
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
             }
