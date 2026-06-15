@@ -1,5 +1,3 @@
-use std::net::Ipv4Addr;
-
 struct Cpu {
     memory: [u8; 4096], //CHIP-8 can access 4KB of memory
     v: [u8; 16],        // The general purpose 16-bit registers
@@ -56,10 +54,8 @@ impl Cpu {
             );
         }
 
-        self.sp += 1;
-
         self.stack[self.sp as usize] = self.pc;
-
+        self.sp += 1;
         self.pc = address;
     }
 
