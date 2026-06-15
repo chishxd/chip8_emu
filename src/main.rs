@@ -61,16 +61,16 @@ impl Cpu {
 
     // Skip next instruction if Vx = kk.
     //The interpreter compares register Vx to kk, and if they are equal, increments the program counter by 2.
-    fn se(&mut self, vx: u8, value: u8) {
-        if vx == value {
+    fn se(&mut self, x: usize, value: u8) {
+        if self.v[x] == value {
             self.pc += 2;
         }
     }
 
     // Skip next instruction if Vx != kk.
     //The interpreter compares register Vx to kk, and if they are not equal, increments the program counter by 2.
-    fn sne(&mut self, vx: u8, value: u8) {
-        if vx != value {
+    fn sne(&mut self, x: usize, value: u8) {
+        if self.v[x] != value {
             self.pc += 2;
         }
     }
@@ -79,8 +79,8 @@ impl Cpu {
     // Skip next instruction if Vx = Vy.
 
     // The interpreter compares register Vx to register Vy, and if they are equal, increments the program counter by 2.
-    fn sev(&mut self, vx: u8, vy: u8) {
-        if vx == vy {
+    fn sev(&mut self, x: usize, y: usize) {
+        if self.v[x] == self.v[y] {
             self.pc += 2;
         }
     }
@@ -122,7 +122,9 @@ impl Cpu {
     // 8xy2 - AND Vx, Vy
     // Set Vx = Vx AND Vy.
 
-    // Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx. A bitwise AND compares the corrseponding bits from two values, and if both bits are 1, then the same bit in the result is also 1. Otherwise, it is 0.
+    // Performs a bitwise AND on the values of Vx and Vy, then stores the result in Vx.
+    // A bitwise AND compares the corrseponding bits from two values, and if both bits are 1,
+    // then the same bit in the result is also 1. Otherwise, it is 0.
     fn and(&mut self, x: usize, y: usize) {
         self.v[x] &= self.v[y];
     }
@@ -130,7 +132,9 @@ impl Cpu {
     // 8xy3 - XOR Vx, Vy
     // Set Vx = Vx XOR Vy.
 
-    // Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx. An exclusive OR compares the corrseponding bits from two values, and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
+    // Performs a bitwise exclusive OR on the values of Vx and Vy, then stores the result in Vx.
+    // An exclusive OR compares the corrseponding bits from two values,
+    // and if the bits are not both the same, then the corresponding bit in the result is set to 1. Otherwise, it is 0.
     fn xor(&mut self, x: usize, y: usize) {
         self.v[x] ^= self.v[y];
     }
@@ -138,8 +142,8 @@ impl Cpu {
     // 8xy4 - ADD Vx, Vy
     // Set Vx = Vx + Vy, set VF = carry.
 
-    // The values of Vx and Vy are added together. 
-    // If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0. 
+    // The values of Vx and Vy are added together.
+    // If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0.
     // Only the lowest 8 bits of the result are kept, and stored in Vx.
     fn add_v(&mut self, x: usize, y: usize) {
         self.v[x] += self.v[y];
@@ -161,7 +165,7 @@ impl Cpu {
     // 8xy6 - SHR Vx {, Vy}
     // Set Vx = Vx SHR 1.
 
-    // If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0. 
+    // If the least-significant bit of Vx is 1, then VF is set to 1, otherwise 0.
     // Then Vx is divided by 2.
     fn shr(&mut self, x: usize) {
         let lsb = self.v[x] & 1;
@@ -196,6 +200,16 @@ impl Cpu {
         self.v[0xF] = msb;
     }
 
+    // 9xy0 - SNE Vx, Vy
+    // Skip next instruction if Vx != Vy.
+
+    // The values of Vx and Vy are compared, and if they are not equal, the program counter is increased by 2.
+    fn sne_v(&mut self, vx: u8, vy: u8) {
+        if vx != vy {
+            self.pc += 2;
+        }
+    }
+
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
@@ -224,16 +238,9 @@ impl Cpu {
             },
             0x1 => self.jmp(nnn),
             0x2 => self.call(nnn),
-            0x3 => {
-                let vx_value = self.v[x];
-                self.se(vx_value, kk);
-            }
-            0x4 => {
-                let vx_value = self.v[x];
-
-                self.sne(vx_value, kk);
-            }
-            0x5 => self.sev(self.v[x], self.v[y]),
+            0x3 => self.se(x, kk),
+            0x4 => self.sne(x, kk),
+            0x5 => self.sev(x, y),
             0x6 => self.load(x, kk),
             0x7 => self.add(x, kk),
             0x8 => match n {
@@ -249,6 +256,7 @@ impl Cpu {
 
                 _ => println!("Invalid 0x8 series code! {:#06X}", opcode),
             },
+            0x9 => self.sne_v(self.v[x], self.v[y]),
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
             }
@@ -311,7 +319,7 @@ mod test {
         let mut cpu = Cpu::new();
         cpu.pc = 0x200;
 
-        cpu.se(cpu.v[1], 0);
+        cpu.se(1, 0);
 
         //The program should have incremented by 2 now
         assert_eq!(cpu.pc, 0x202);
