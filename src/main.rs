@@ -7,6 +7,7 @@ struct Cpu {
     sp: u8, //The stack pointer (SP) can be 8-bit, it is used to point to the topmost level of the stack
     keyboard: [bool; 16],
     display: [bool; 2048],
+    rng_state: u32,
 }
 
 impl Cpu {
@@ -20,6 +21,7 @@ impl Cpu {
             sp: 0,
             keyboard: [false; 16],
             display: [false; 2048],
+            rng_state: 12345,
         }
     }
 
@@ -228,6 +230,84 @@ impl Cpu {
         self.pc = target & 0x0FFF;
     }
 
+    //     Cxkk - RND Vx, byte
+    // Set Vx = random byte AND kk.
+    //
+    // The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk.
+    // The results are stored in Vx. See instruction 8xy2 for more information on AND.
+    fn rnd(&mut self, x: usize, kk: u8) {
+        let random_byte = self.rand_u8();
+
+        self.v[x] = random_byte & kk;
+    }
+
+    // A helper function. just a regular XorgShift32 implementation!
+    fn rand_u8(&mut self) -> u8 {
+        let mut x = self.rng_state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        self.rng_state = x;
+
+        (x & 0xFF) as u8
+    }
+    // Dxyn - DRW Vx, Vy, nibble
+    // Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+    //
+    // The interpreter reads n bytes from memory, starting at the address stored in I.
+    // These bytes are then displayed as sprites on screen at coordinates (Vx, Vy).
+    // Sprites are XORed onto the existing screen. If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.
+    // If the sprite is positioned so part of it is outside the coordinates of the display, it wraps around to the opposite side of the screen.
+    // See instruction 8xy3 for more information on XOR, and section 2.4, Display, for more information on the Chip-8 screen and sprites.
+    fn draw(&mut self, x: usize, y: usize, n: usize) {
+        let start_x = self.v[x] as usize;
+        let start_y = self.v[y] as usize;
+
+        let mut collision = false;
+
+        for row in 0..n {
+            let sprite_byte = self.memory[(self.i + row as u16) as usize];
+
+            for col in 0..8 {
+                let bit = (sprite_byte >> (7 - col)) & 1;
+
+                if bit != 0 {
+                    let pxl_x = (start_x + col) % 64;
+                    let pxl_y = (start_y + col) % 32;
+
+                    let pxl_idx = pxl_x + (pxl_y * 64);
+
+                    if self.display[pxl_idx] {
+                        collision = true;
+                    }
+
+                    self.display[pxl_idx] ^= true;
+                }
+            }
+        }
+        self.v[0xF] = if collision { 1 } else { 0 };
+    }
+
+    // Ex9E - SKP Vx
+    // Skip next instruction if key with the value of Vx is pressed.
+    //
+    // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
+    fn skp_if_key(&mut self, x: usize) {
+        if self.keyboard[self.v[x] as usize] {
+            self.pc += 2;
+        }
+    }
+
+    // ExA1 - SKNP Vx
+    // Skip next instruction if key with the value of Vx is not pressed.
+    //
+    // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
+    fn skp_if_not_key(&mut self, x: usize) {
+        if !self.keyboard[self.v[x] as usize] {
+            self.pc += 2;
+        }
+    }
+
     fn tick(&mut self) {
         // This is step 1, fetching the program from 4KB ram using program counter
         let byte1 = self.memory[self.pc as usize];
@@ -277,6 +357,13 @@ impl Cpu {
             0x9 => self.sne_v(self.v[x], self.v[y]),
             0xA => self.load_addr(nnn),
             0xB => self.jmp_v0(nnn),
+            0xC => self.rnd(x, kk),
+            0xD => self.draw(x, y, n as usize),
+            0xE => match opcode & 0x00FF {
+                0x9E => self.skp_if_key(x),
+                0xA1 => self.skp_if_not_key(x),
+                _ => println!("Invalid instruction for 0xE series"),
+            },
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
             }
