@@ -322,7 +322,7 @@ impl Cpu {
     fn load_vx_dt(&mut self, x: usize) {
         self.delay_timer = self.v[x];
     }
-    //
+
     //     Fx0A - LD Vx, K
     // Wait for a key press, store the value of the key in Vx.
     //
@@ -349,6 +349,63 @@ impl Cpu {
     // DT is set equal to the value of Vx.
     fn load_dt_vx(&mut self, x: usize) {
         self.delay_timer = self.v[x];
+    }
+
+    //     Fx18 - LD ST, Vx
+    // Set sound timer = Vx.
+    //
+    // ST is set equal to the value of Vx.
+    fn load_st_vx(&mut self, x: usize) {
+        self.sound_timer = self.v[x];
+    }
+
+    //     Fx1E - ADD I, Vx
+    // Set I = I + Vx.
+    //
+    // The values of I and Vx are added, and the results are stored in I.
+    fn add_i_vx(&mut self, x: usize) {
+        self.i += self.v[x] as u16;
+    }
+
+    //     Fx29 - LD F, Vx
+    // Set I = location of sprite for digit Vx.
+    //
+    // The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
+    // See section 2.4, Display, for more information on the Chip-8 hexadecimal font.
+    fn load_sprite_vx(&mut self, x: usize) {
+        self.i = (self.v[x] * 0x05) as u16;
+    }
+
+    //     Fx33 - LD B, Vx
+    // Store BCD representation of Vx in memory locations I, I+1, and I+2.
+    //
+    // The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.
+    fn store_bcd(&mut self, x: usize) {
+        let value = self.v[x];
+
+        self.memory[(self.i) as usize] = value / 100;
+        self.memory[(self.i + 1) as usize] = (value % 100) / 10;
+        self.memory[(self.i + 2) as usize] = value % 10;
+    }
+
+    // Fx55 - LD [I], Vx
+    // Store registers V0 through Vx in memory starting at location I.
+    //
+    // The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
+    fn store_v_registers(&mut self, x: usize) {
+        for idx in 0..=x {
+            self.memory[(self.i + idx as u16) as usize] = self.v[idx];
+        }
+    }
+
+    // Fx65 - LD Vx, [I]
+    // Read registers V0 through Vx from memory starting at location I.
+    //
+    // The interpreter reads values from memory starting at location I into registers V0 through Vx.
+    fn load_v_registers(&mut self, x: usize) {
+        for idx in 0..=x {
+            self.v[idx] = self.memory[(self.i + idx as u16) as usize];
+        }
     }
 
     fn tick(&mut self) {
@@ -411,6 +468,12 @@ impl Cpu {
                 0x07 => self.load_vx_dt(x),
                 0x0A => self.wait_for_key(x),
                 0x15 => self.load_dt_vx(x),
+                0x18 => self.load_st_vx(x),
+                0x1E => self.add_i_vx(x),
+                0x29 => self.load_sprite_vx(x),
+                0x33 => self.store_bcd(x),
+                0x55 => self.store_v_registers(x),
+                0x65 => self.load_v_registers(x),
                 _ => print!("Invalid instruction for 0xF series"),
             },
             _ => {
