@@ -5,6 +5,8 @@ struct Cpu {
     pc: u16,
     stack: [u16; 16], //used to store the address that the interpreter should return to when finished with a subroutine
     sp: u8, //The stack pointer (SP) can be 8-bit, it is used to point to the topmost level of the stack
+    delay_timer: u8,
+    sound_timer: u8,
     keyboard: [bool; 16],
     display: [bool; 2048],
     rng_state: u32,
@@ -19,6 +21,8 @@ impl Cpu {
             pc: 0x200,
             stack: [0; 16],
             sp: 0,
+            delay_timer: 0,
+            sound_timer: 0,
             keyboard: [false; 16],
             display: [false; 2048],
             rng_state: 12345,
@@ -293,7 +297,8 @@ impl Cpu {
     //
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
     fn skp_if_key(&mut self, x: usize) {
-        if self.keyboard[self.v[x] as usize] {
+        let key_value = (self.v[x] & 0xF) as usize;
+        if self.keyboard[self.v[key_value] as usize] {
             self.pc += 2;
         }
     }
@@ -303,9 +308,47 @@ impl Cpu {
     //
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
     fn skp_if_not_key(&mut self, x: usize) {
-        if !self.keyboard[self.v[x] as usize] {
+        let key_value = (self.v[x] & 0xF) as usize;
+
+        if !self.keyboard[self.v[key_value] as usize] {
             self.pc += 2;
         }
+    }
+
+    //     Fx07 - LD Vx, DT
+    // Set Vx = delay timer value.
+    //
+    // The value of DT is placed into Vx.
+    fn load_vx_dt(&mut self, x: usize) {
+        self.delay_timer = self.v[x];
+    }
+    //
+    //     Fx0A - LD Vx, K
+    // Wait for a key press, store the value of the key in Vx.
+    //
+    // All execution stops until a key is pressed, then the value of that key is stored in Vx.
+    fn wait_for_key(&mut self, x: usize) {
+        let mut key_pressed = false;
+
+        for (i, &pressed) in self.keyboard.iter().enumerate() {
+            if pressed {
+                key_pressed = true;
+                self.v[x] = i as u8;
+
+                break;
+            }
+        }
+
+        if !key_pressed {
+            self.pc -= 2;
+        }
+    }
+
+    // Fx15 - LD DT, Vx
+    // Set delay timer = Vx.
+    // DT is set equal to the value of Vx.
+    fn load_dt_vx(&mut self, x: usize) {
+        self.delay_timer = self.v[x];
     }
 
     fn tick(&mut self) {
@@ -364,6 +407,12 @@ impl Cpu {
                 0xA1 => self.skp_if_not_key(x),
                 _ => println!("Invalid instruction for 0xE series"),
             },
+            0xF => match opcode & 0x00FF {
+                0x07 => self.load_vx_dt(x),
+                0x0A => self.wait_for_key(x),
+                0x15 => self.load_dt_vx(x),
+                _ => print!("Invalid instruction for 0xF series"),
+            },
             _ => {
                 println!("Unknown opcode: {:#06X}", opcode)
             }
@@ -372,7 +421,6 @@ impl Cpu {
 }
 fn main() {
     let mut cpu = Cpu::new();
-
     //[YEAH I KNOW TESTING HERE IS SLOPPY... I will fix it soon :)]
 
     // loading up some values like 10 and 20
