@@ -1,4 +1,3 @@
-
 pub struct Cpu {
     pub memory: [u8; 4096], //CHIP-8 can access 4KB of memory
     pub v: [u8; 16],        // The general purpose 16-bit registers
@@ -12,7 +11,6 @@ pub struct Cpu {
     pub display: [bool; 2048],
     pub rng_state: u32,
 }
-
 
 // Yeah I wrote this myself gng :sob:
 const FONTSET: [u8; 80] = [
@@ -33,7 +31,6 @@ const FONTSET: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0xF0, //E
     0xF0, 0x80, 0xF0, 0x80, 0x80, //F
 ];
-
 
 impl Cpu {
     pub fn new() -> Self {
@@ -130,7 +127,7 @@ impl Cpu {
 
     // Adds the value kk to the value of register Vx, then stores the result in Vx.
     fn add(&mut self, x: usize, kk: u8) {
-        self.v[x] += kk;
+        self.v[x] = self.v[x].wrapping_add(kk);
     }
 
     // 8xy0 - LD Vx, Vy
@@ -178,7 +175,13 @@ impl Cpu {
     // If the result is greater than 8 bits (i.e., > 255,) VF is set to 1, otherwise 0.
     // Only the lowest 8 bits of the result are kept, and stored in Vx.
     fn add_v(&mut self, x: usize, y: usize) {
-        self.v[x] += self.v[y];
+        let sum = (self.v[x] as u16) + (self.v[y] as u16);
+
+        let carry_flag = if sum > 255 { 1 } else { 0 };
+
+        self.v[x] = sum as u8;
+
+        self.v[0] = carry_flag;
     }
 
     // 8xy5 - SUB Vx, Vy

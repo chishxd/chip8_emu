@@ -1,40 +1,81 @@
 mod cpu;
 
+use std::{fs::File, io::Read};
+
 use cpu::Cpu;
+use minifb::{Key, Window, WindowOptions};
 
 fn main() {
     let mut cpu = Cpu::new();
-    //[YEAH I KNOW TESTING HERE IS SLOPPY... I will fix it soon :)]
 
-    // loading up some values like 10 and 20
-    cpu.memory[0x200] = 0x61;
-    cpu.memory[0x201] = 0x0A; //512: LD V1, 10 (0x610A)
+    let mut file =
+        File::open("/home/chish/Downloads/pumpkindressup.ch8").expect("failed to open ROM");
+    let mut rom_buffer = Vec::new();
+    file.read_to_end(&mut rom_buffer)
+        .expect("failed to read ROM");
 
-    cpu.memory[0x202] = 0x62;
-    cpu.memory[0x203] = 0x14; // 514: LD V2, 20  (0x6214)
-
-    // calling a subroutine(subroutine is defined below)
-    cpu.memory[0x204] = 0x22;
-    cpu.memory[0x205] = 0x0A; // 516: CALL 0x20A (0x220A)
-
-    cpu.memory[0x206] = 0x12;
-    cpu.memory[0x207] = 0x00; // 518: JP 0x200   (0x1200)
-
-    // Now time for subroutines!
-    // this jst loads value from v2 to v1
-    cpu.memory[0x20A] = 0x81;
-    cpu.memory[0x20B] = 0x20; // 522: LD V1, V2 (0x8120)
-    cpu.memory[0x20C] = 0x00;
-    cpu.memory[0x20D] = 0xEE; //RET (0x00EE)
-
-    for step in 1..=6 {
-        println!("\n===TICK {}===", step);
-        cpu.tick();
-
-        println!("Program Counter (PC): {:#06X}", cpu.pc);
-        println!("Stack Pointer(SP): {}", cpu.sp);
-        println!("Register V1: {}", cpu.v[1]);
-        println!("Register V2: {}", cpu.v[2]);
-        println!("Register V3: {}", cpu.v[3]);
+    for (i, &byte) in rom_buffer.iter().enumerate() {
+        cpu.memory[0x200 + i] = byte;
     }
+
+    let mut window = Window::new(
+        "The Chip-8 Emu",
+        64,
+        32,
+        WindowOptions {
+            scale: minifb::Scale::X16, //this will make actual window size 512 * 256
+            ..WindowOptions::default()
+        },
+    )
+    .unwrap_or_else(|e| panic!("{}", e));
+
+    window.set_target_fps(60);
+
+    let mut pixel_buf: [u32; 2048] = [0; 2048];
+    while window.is_open() & !window.is_key_down(Key::Escape) {
+        update_keys(&window, &mut cpu);
+
+        for _ in 0..8 {
+            cpu.tick();
+        }
+
+        if cpu.delay_timer > 0 {
+            cpu.delay_timer -= 1;
+        }
+
+        if cpu.sound_timer > 0 {
+            cpu.sound_timer -= 1;
+        }
+
+        for (pixel, &is_on) in pixel_buf.iter_mut().zip(cpu.display.iter()) {
+            *pixel = if is_on { 0x00FFFFFF } else { 0x00000000 };
+        }
+
+        window.update_with_buffer(&pixel_buf, 64, 32).unwrap();
+    }
+}
+
+fn update_keys(window: &Window, cpu: &mut Cpu) {
+    cpu.keyboard[0x1] = window.is_key_down(Key::Key1);
+    cpu.keyboard[0x2] = window.is_key_down(Key::Key2);
+    cpu.keyboard[0x3] = window.is_key_down(Key::Key3);
+    cpu.keyboard[0xC] = window.is_key_down(Key::Key4);
+
+    //Row 2
+    cpu.keyboard[0x4] = window.is_key_down(Key::Q);
+    cpu.keyboard[0x5] = window.is_key_down(Key::W);
+    cpu.keyboard[0x6] = window.is_key_down(Key::E);
+    cpu.keyboard[0xD] = window.is_key_down(Key::R);
+
+    //Row 3
+    cpu.keyboard[0x7] = window.is_key_down(Key::A);
+    cpu.keyboard[0x8] = window.is_key_down(Key::S);
+    cpu.keyboard[0x9] = window.is_key_down(Key::D);
+    cpu.keyboard[0xE] = window.is_key_down(Key::F);
+
+    //Row 2
+    cpu.keyboard[0xA] = window.is_key_down(Key::Z);
+    cpu.keyboard[0x0] = window.is_key_down(Key::X);
+    cpu.keyboard[0xB] = window.is_key_down(Key::C);
+    cpu.keyboard[0xF] = window.is_key_down(Key::V);
 }
