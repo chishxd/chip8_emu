@@ -12,9 +12,29 @@ struct Cpu {
     rng_state: u32,
 }
 
+// Yeah I wrote this myself gng :sob:
+const FONTSET: [u8; 80] = [
+    0xF0, 0x90, 0x90, 0x90, 0xF0, //0
+    0x20, 0x60, 0x20, 0x20, 0x70, //1
+    0xF0, 0x10, 0xF0, 0x80, 0xF0, //2
+    0xF0, 0x10, 0xF0, 0x10, 0xF0, //3
+    0x90, 0x90, 0xF0, 0x10, 0x10, //4
+    0xF0, 0x80, 0xF0, 0x10, 0xF0, //5
+    0xF0, 0x80, 0xF0, 0x90, 0xF0, //6
+    0xF0, 0x10, 0x20, 0x40, 0x40, //7
+    0xF0, 0x90, 0xF0, 0x90, 0xF0, //8
+    0xF0, 0x90, 0xF0, 0x10, 0xF0, //9
+    0xF0, 0x90, 0xF0, 0x90, 0x90, //A
+    0xE0, 0x90, 0xE0, 0x90, 0xE0, //B
+    0xF0, 0x80, 0x80, 0x80, 0xF0, //C
+    0xE0, 0x90, 0x90, 0x90, 0xE0, //D
+    0xF0, 0x80, 0xF0, 0x80, 0xF0, //E
+    0xF0, 0x80, 0xF0, 0x80, 0x80, //F
+];
+
 impl Cpu {
     fn new() -> Self {
-        Self {
+        let mut cpu = Self {
             memory: [0; 4096],
             v: [0; 16],
             i: 0,
@@ -26,7 +46,10 @@ impl Cpu {
             keyboard: [false; 16],
             display: [false; 2048],
             rng_state: 12345,
-        }
+        };
+
+        cpu.memory[0..80].copy_from_slice(&FONTSET);
+        cpu
     }
 
     //Clears the screen, 00E0 - CLS
@@ -277,7 +300,7 @@ impl Cpu {
 
                 if bit != 0 {
                     let pxl_x = (start_x + col) % 64;
-                    let pxl_y = (start_y + col) % 32;
+                    let pxl_y = (start_y + row) % 32;
 
                     let pxl_idx = pxl_x + (pxl_y * 64);
 
@@ -298,7 +321,7 @@ impl Cpu {
     // Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
     fn skp_if_key(&mut self, x: usize) {
         let key_value = (self.v[x] & 0xF) as usize;
-        if self.keyboard[self.v[key_value] as usize] {
+        if self.keyboard[key_value] {
             self.pc += 2;
         }
     }
@@ -310,7 +333,7 @@ impl Cpu {
     fn skp_if_not_key(&mut self, x: usize) {
         let key_value = (self.v[x] & 0xF) as usize;
 
-        if !self.keyboard[self.v[key_value] as usize] {
+        if !self.keyboard[key_value] {
             self.pc += 2;
         }
     }
@@ -320,7 +343,7 @@ impl Cpu {
     //
     // The value of DT is placed into Vx.
     fn load_vx_dt(&mut self, x: usize) {
-        self.delay_timer = self.v[x];
+        self.v[x] = self.delay_timer;
     }
 
     //     Fx0A - LD Vx, K
