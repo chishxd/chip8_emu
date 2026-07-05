@@ -79,3 +79,5 @@ fn update_keys(window: &Window, cpu: &mut Cpu) {
     cpu.keyboard[0xB] = window.is_key_down(Key::C);
     cpu.keyboard[0xF] = window.is_key_down(Key::V);
 }
+
+// https://www.youtube.com/watch?v=QDia3e12czc&pp=ygUIcmlja3JvbGw%3D
