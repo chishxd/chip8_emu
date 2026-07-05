@@ -1,15 +1,24 @@
 mod cpu;
 
 use std::{fs::File, io::Read};
-
+use clap::Parser;
 use cpu::Cpu;
 use minifb::{Key, Window, WindowOptions};
 
+#[derive(Parser, Debug)]
+struct Args{
+    ///Location of the .ch8 file
+    #[arg(short, long)]
+    file_path: String
+}
+
 fn main() {
+
+    let args = Args::parse();
     let mut cpu = Cpu::new();
 
     let mut file =
-        File::open("/home/chish/Downloads/pumpkindressup.ch8").expect("failed to open ROM");
+        File::open(args.file_path).expect("failed to open ROM");
     let mut rom_buffer = Vec::new();
     file.read_to_end(&mut rom_buffer)
         .expect("failed to read ROM");
@@ -32,6 +41,8 @@ fn main() {
     window.set_target_fps(60);
 
     let mut pixel_buf: [u32; 2048] = [0; 2048];
+    let forest_green: u32 = 0x00306230;
+    let light_mint_green: u32 = 0x008BAC0F;
     while window.is_open() & !window.is_key_down(Key::Escape) {
         update_keys(&window, &mut cpu);
 
@@ -45,10 +56,16 @@ fn main() {
 
         if cpu.sound_timer > 0 {
             cpu.sound_timer -= 1;
+
+            let _ = actually_beep::beep_with_hz_and_millis(60, 16);
         }
 
         for (pixel, &is_on) in pixel_buf.iter_mut().zip(cpu.display.iter()) {
-            *pixel = if is_on { 0x00FFFFFF } else { 0x00000000 };
+            *pixel = if is_on {
+                forest_green
+            } else {
+                light_mint_green
+            };
         }
 
         window.update_with_buffer(&pixel_buf, 64, 32).unwrap();
@@ -79,5 +96,3 @@ fn update_keys(window: &Window, cpu: &mut Cpu) {
     cpu.keyboard[0xB] = window.is_key_down(Key::C);
     cpu.keyboard[0xF] = window.is_key_down(Key::V);
 }
-
-// https://www.youtube.com/watch?v=QDia3e12czc&pp=ygUIcmlja3JvbGw%3D

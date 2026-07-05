@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 minifb = "0.28.0"
+actually_beep = "0.1.1"
+clap = { version = "4.6.1", features = ["derive"] }
