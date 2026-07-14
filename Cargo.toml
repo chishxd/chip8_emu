@@ -1,7 +1,12 @@
 [package]
-name = "chip8_emu"
+name = "ch8_emu"
 version = "0.1.0"
 edition = "2024"
+author  = "Chish"
+description = "A simple Chip-8 emulator written in rust"
+readme = "README.md"
+repository = "https://codeberg.org/chish/chip8_emu"
+license = "MIT"
 
 [dependencies]
 minifb = "0.28.0"
