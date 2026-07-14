@@ -1,13 +1,14 @@
 # Chip-8 Emu
 
-Foobar is a Python library for dealing with word pluralization.
+Chip-8 Emulator is a fast and simple CLI Chip-8 emulator.
+Just pass the file path to CMD and run!
 
 ## Installation
 
 Use cargo to install this emulator!.
 
 ```bash
-cargo install <name-tbd>
+cargo install ch8_emu
 ```
 
 ## Features
